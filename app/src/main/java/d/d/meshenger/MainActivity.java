@@ -112,7 +112,9 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
         contactListFragment.refreshContactList();
         eventListFragment.refreshEventList();
 
-        this.binder.pingContacts();
+        if (this.binder != null) {
+            this.binder.pingContacts();
+        }
     }
 
     @Override
