@@ -1,7 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    signingConfigs {
+    lintOptions {
+        abortOnError false
     }
     compileSdkVersion 30
     defaultConfig {
