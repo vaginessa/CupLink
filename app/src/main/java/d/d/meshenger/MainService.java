@@ -215,10 +215,6 @@ public class MainService extends Service implements Runnable {
             return;
         }
 
-        byte[] clientPublicKey = new byte[0];
-        byte[] ownSecretKey = this.db.settings.getSecretKey();
-        byte[] ownPublicKey = this.db.settings.getPublicKey();
-
         try {
             PacketWriter pw = new PacketWriter(client);
             PacketReader pr = new PacketReader(client);
@@ -226,7 +222,7 @@ public class MainService extends Service implements Runnable {
 
             InetSocketAddress remote_address = (InetSocketAddress) client.getRemoteSocketAddress();
             log("incoming connection from " + remote_address);
-
+            String clientAddress = client.getInetAddress().getHostAddress();
             while (true) {
                 byte[] request = pr.readMessage();
                 if (request == null) {
@@ -241,8 +237,11 @@ public class MainService extends Service implements Runnable {
 
                 if (contact == null) {
                     for (Contact c : this.db.contacts) {
-                        if (Arrays.equals(c.getPublicKey(), clientPublicKey)) {
-                            contact = c;
+                        for(String address:c.getAddresses()){
+                            if (address.equals(clientAddress)) {
+                                contact = c;
+                                break;
+                            }
                         }
                     }
 
@@ -264,15 +263,15 @@ public class MainService extends Service implements Runnable {
 
                     if (contact == null) {
                         // unknown caller
-                        contact = new Contact("", clientPublicKey.clone(), new ArrayList<>());
+                        contact = new Contact("", "".getBytes(), new ArrayList<>());
                     }
                 }
 
                 // suspicious change of identity during connection...
-                if (!Arrays.equals(contact.getPublicKey(), clientPublicKey)) {
-                    log("suspicious change of identity");
-                    continue;
-                }
+                //if (!Arrays.equals(contact.getPublicKey(), clientPublicKey)) {
+                //   log("suspicious change of identity");
+                //    continue;
+                //}
 
                 // remember last good address (the outgoing port is random and not the server port)
                 contact.setLastWorkingAddress(
@@ -304,14 +303,14 @@ public class MainService extends Service implements Runnable {
                     case "ping": {
                         log("got ping...");
                         // someone wants to know if we are online
-                        binder.setContactState(contact.getPublicKey(), Contact.State.ONLINE);
+                        binder.setContactState(contact.getAddresses().get(0).getBytes(), Contact.State.ONLINE);
                         byte[] encrypted = "{\"action\":\"pong\"}".getBytes("UTF-8");
                         pw.writeMessage(encrypted);
                         break;
                     }
                     case "status_change": {
                         if (obj.optString("status", "").equals("offline")) {
-                            binder.setContactState(contact.getPublicKey(), Contact.State.OFFLINE);
+                            binder.setContactState(contact.getAddresses().get(0).getBytes(), Contact.State.OFFLINE);
                         } else {
                             log("Received unknown status_change: " + obj.getString("status"));
                         }
@@ -329,9 +328,6 @@ public class MainService extends Service implements Runnable {
                 this.currentCall.decline();
             }
         }
-
-        // zero out key
-        Arrays.fill(clientPublicKey, (byte) 0);
     }
 
     @Override
@@ -387,10 +383,12 @@ public class MainService extends Service implements Runnable {
             return this.service.first_start;
         }
 
-        Contact getContactByPublicKey(byte[] pubKey) {
-            for (Contact contact : this.service.db.contacts) {
-                if (Arrays.equals(contact.getPublicKey(), pubKey)) {
-                    return contact;
+        Contact getContactByIP(byte[] ip) {
+            for (Contact c : this.service.db.contacts) {
+                for(String address:c.getAddresses()){
+                    if (Arrays.equals(address.getBytes(), ip)) {
+                        return c;
+                    }
                 }
             }
             return null;
@@ -418,7 +416,7 @@ public class MainService extends Service implements Runnable {
         }
 
         void setContactState(byte[] publicKey, Contact.State state) {
-            Contact contact = getContactByPublicKey(publicKey);
+            Contact contact = getContactByIP(publicKey);
             if (contact != null && contact.getState() != state) {
                 contact.setState(state);
                 LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_contact_list"));
@@ -478,7 +476,7 @@ public class MainService extends Service implements Runnable {
         void addCallEvent(Contact contact, CallEvent.Type type) {
             InetSocketAddress last_working = contact.getLastWorkingAddress();
             this.service.events.add(new CallEvent(
-                contact.getPublicKey(),
+                contact.getAddresses().get(0).getBytes(),
                     (last_working != null) ? last_working.getAddress() : null,
                 type
             ));
@@ -513,7 +511,7 @@ public class MainService extends Service implements Runnable {
         public void run() {
             for (Contact contact : contacts) {
                 Socket socket = null;
-                byte[] publicKey = contact.getPublicKey();
+                byte[] publicKey = contact.getAddresses().get(0).getBytes();
 
                 try {
                     socket = contact.createSocket();

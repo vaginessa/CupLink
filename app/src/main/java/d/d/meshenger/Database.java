@@ -21,7 +21,7 @@ class Database {
     }
 
     public void addContact(Contact contact) {
-        int idx = findContact(contact.getPublicKey());
+        int idx = findContact(contact.getAddresses().get(0).getBytes());
         if (idx >= 0) {
             // contact exists - replace
             this.contacts.set(idx, contact);
@@ -39,7 +39,7 @@ class Database {
 
     public int findContact(byte[] publicKey) {
         for (int i = 0; i < this.contacts.size(); i += 1) {
-            if (Arrays.equals(this.contacts.get(i).getPublicKey(), publicKey)) {
+            if (Arrays.equals(this.contacts.get(i).getAddresses().get(0).getBytes(), publicKey)) {
                 return i;
             }
         }
@@ -54,12 +54,6 @@ class Database {
 
         if (this.settings.getPublicKey() != null) {
             Arrays.fill(this.settings.getPublicKey(), (byte) 0);
-        }
-
-        for (Contact contact : this.contacts) {
-            if (contact.getPublicKey() != null) {
-                Arrays.fill(contact.getPublicKey(), (byte) 0);
-            }
         }
     }
 

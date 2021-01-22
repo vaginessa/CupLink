@@ -78,7 +78,7 @@ public class EventListFragment extends Fragment implements AdapterView.OnItemCli
                 String add = res.getString(R.string.add);
                 String block = res.getString(R.string.block);
                 String unblock = res.getString(R.string.unblock);
-                Contact contact = EventListFragment.this.mainActivity.binder.getContactByPublicKey(event.pubKey);
+                Contact contact = EventListFragment.this.mainActivity.binder.getContactByIP(event.pubKey);
 
                 // allow to add unknown caller
                 if (contact == null) {
@@ -113,7 +113,7 @@ public class EventListFragment extends Fragment implements AdapterView.OnItemCli
     }
 
     private void setBlocked(CallEvent event, boolean blocked) {
-        Contact contact = EventListFragment.this.mainActivity.binder.getContactByPublicKey(event.pubKey);
+        Contact contact = EventListFragment.this.mainActivity.binder.getContactByIP(event.pubKey);
         if (contact != null) {
             contact.setBlocked(blocked);
             mainActivity.binder.saveDatabase();

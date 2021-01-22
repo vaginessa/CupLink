@@ -17,7 +17,6 @@ public class Contact implements Serializable {
     enum State { ONLINE, OFFLINE, PENDING };
 
     private String name;
-    private byte[] pubkey;
     private boolean blocked;
     private List<String> addresses;
 
@@ -29,14 +28,12 @@ public class Contact implements Serializable {
 
     public Contact(String name, byte[] pubkey, List<String> addresses) {
         this.name = name;
-        this.pubkey = pubkey;
         this.blocked = false;
         this.addresses = addresses;
     }
 
     private Contact() {
         this.name = "";
-        this.pubkey = null;
         this.blocked = false;
         this.addresses = new ArrayList<>();
     }
@@ -83,10 +80,6 @@ public class Contact implements Serializable {
         }
 
         return addrs;
-    }
-
-    public byte[] getPublicKey() {
-        return pubkey;
     }
 
     public String getName() {
@@ -173,7 +166,6 @@ public class Contact implements Serializable {
         JSONArray array = new JSONArray();
 
         object.put("name", contact.name);
-        object.put("public_key", Utils.byteArrayToHexString(contact.pubkey));
 
         for (String address : contact.getAddresses()) {
             array.put(address);
@@ -191,14 +183,9 @@ public class Contact implements Serializable {
         Contact contact = new Contact();
 
         contact.name = object.getString("name");
-        contact.pubkey = Utils.hexStringToByteArray(object.getString("public_key"));
 
         if (!Utils.isValidName(contact.name)) {
             throw new JSONException("Invalid Name.");
-        }
-
-        if (contact.pubkey == null) {
-            throw new JSONException("Invalid Public Key.");
         }
 
         JSONArray array = object.getJSONArray("addresses");

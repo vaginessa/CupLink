@@ -62,8 +62,6 @@ public class RTCCall implements DataChannel.Observer {
 
     private Context context;
     private Contact contact;
-    private byte[] ownPublicKey;
-    private byte[] ownSecretKey;
     private List<PeerConnection.IceServer> iceServers;
     private OnStateChangeListener listener;
     private MainService.MainBinder binder;
@@ -82,8 +80,6 @@ public class RTCCall implements DataChannel.Observer {
         this.commSocket = commSocket;
         this.listener = null;
         this.binder = binder;
-        this.ownPublicKey = binder.getSettings().getPublicKey();
-        this.ownSecretKey = binder.getSettings().getSecretKey();
         this.offer = offer;
 
         // usually empty
@@ -102,8 +98,6 @@ public class RTCCall implements DataChannel.Observer {
         this.commSocket = null;
         this.listener = listener;
         this.binder = binder;
-        this.ownPublicKey = binder.getSettings().getPublicKey();
-        this.ownSecretKey = binder.getSettings().getSecretKey();
 
         log("RTCCall created");
 
@@ -418,7 +412,6 @@ public class RTCCall implements DataChannel.Observer {
         }
 
         new Handler(Looper.getMainLooper()).post(() -> {
-            //remoteRenderer.setBackgroundColor(Color.TRANSPARENT);
             remoteRenderer.init(this.sharedContext, null);
             stream.videoTracks.get(0).addSink(remoteRenderer);
         });

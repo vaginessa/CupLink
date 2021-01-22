@@ -69,7 +69,7 @@ public class QRScanActivity extends MeshengerActivity implements BarcodeCallback
         }
 
         // lookup existing contacts by key and name
-        Contact existing_pubkey_contact = binder.getContactByPublicKey(new_contact.getPublicKey());
+        Contact existing_pubkey_contact = binder.getContactByIP(new_contact.getAddresses().get(0).getBytes());
         Contact existing_name_contact = binder.getContactByName(new_contact.getName());
 
         if (existing_pubkey_contact != null) {
@@ -96,7 +96,7 @@ public class QRScanActivity extends MeshengerActivity implements BarcodeCallback
         nameTextView.setText(other_contact.getName());
 
         replaceButton.setOnClickListener((View v) -> {
-            QRScanActivity.this.binder.deleteContact(other_contact.getPublicKey());
+            QRScanActivity.this.binder.deleteContact(other_contact.getAddresses().get(0).getBytes());
             QRScanActivity.this.binder.addContact(new_contact);
 
             // done
@@ -126,7 +126,7 @@ public class QRScanActivity extends MeshengerActivity implements BarcodeCallback
         nameEditText.setText(other_contact.getName());
 
         replaceButton.setOnClickListener((View v) -> {
-            QRScanActivity.this.binder.deleteContact(other_contact.getPublicKey());
+            QRScanActivity.this.binder.deleteContact(other_contact.getAddresses().get(0).getBytes());
             QRScanActivity.this.binder.addContact(new_contact);
 
             // done

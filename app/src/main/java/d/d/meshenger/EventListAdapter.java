@@ -65,7 +65,7 @@ class EventListAdapter extends ArrayAdapter<CallEvent> {
         // find name
         String name = "";
         for (Contact contact : this.contacts) {
-            if (Arrays.equals(contact.getPublicKey(), event.pubKey)) {
+            if (Arrays.equals(contact.getAddresses().get(0).getBytes(), event.pubKey)) {
                 name = contact.getName();
                 break;
             }

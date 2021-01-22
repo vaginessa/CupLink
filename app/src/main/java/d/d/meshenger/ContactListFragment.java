@@ -170,7 +170,7 @@ public class ContactListFragment extends Fragment implements AdapterView.OnItemC
 
                 menu.setOnMenuItemClickListener((MenuItem menuItem) -> {
                     String title = menuItem.getTitle().toString();
-                    byte[] publicKey = contact.getPublicKey();
+                    byte[] publicKey = contact.getAddresses().get(0).getBytes();
                     if (title.equals(delete)) {
                         showDeleteDialog(publicKey, contact.getName());
                     } else if (title.equals(rename)) {
@@ -195,7 +195,7 @@ public class ContactListFragment extends Fragment implements AdapterView.OnItemC
     }
 
     private void setBlocked(byte[] publicKey, boolean blocked) {
-        Contact contact = this.mainActivity.binder.getContactByPublicKey(publicKey);
+        Contact contact = this.mainActivity.binder.getContactByIP(publicKey);
         if (contact != null) {
             contact.setBlocked(blocked);
             this.mainActivity.binder.addContact(contact);
@@ -225,7 +225,7 @@ public class ContactListFragment extends Fragment implements AdapterView.OnItemC
             .setPositiveButton(R.string.ok, (DialogInterface dialogInterface, int i) -> {
                 String newName = et.getText().toString();
                 if (newName.length() > 0) {
-                    Contact contact = this.mainActivity.binder.getContactByPublicKey(publicKey);
+                    Contact contact = this.mainActivity.binder.getContactByIP(publicKey);
                     if (contact != null) {
                         contact.setName(newName);
                         this.mainActivity.binder.addContact(contact);
