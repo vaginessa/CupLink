@@ -268,25 +268,14 @@ class Utils {
         try {
             List<NetworkInterface> all = Collections.list(NetworkInterface.getNetworkInterfaces());
             for (NetworkInterface nif : all) {
-                byte[] mac = nif.getHardwareAddress();
-
-                if (!isValidMAC(mac)) {
-                    log("Interface has invalid mac: " + nif.getName());
-                    continue;
-                }
-
                 if (nif.isLoopback()) {
                     continue;
                 }
-
-                addressList.add(new AddressEntry(Utils.bytesToMacAddress(mac), nif.getName(), Utils.isMulticastMAC(mac)));
-
                 for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
                     InetAddress addr = ia.getAddress();
                     if (addr.isLoopbackAddress()) {
                         continue;
                     }
-
                     addressList.add(new AddressEntry(addr.getHostAddress(), nif.getName(), addr.isMulticastAddress()));
                 }
             }
