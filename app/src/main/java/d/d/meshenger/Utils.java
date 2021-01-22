@@ -276,7 +276,13 @@ class Utils {
                     if (addr.isLoopbackAddress()) {
                         continue;
                     }
-                    addressList.add(new AddressEntry(addr.getHostAddress(), nif.getName(), addr.isMulticastAddress()));
+                    String fullAddress = addr.getHostAddress();
+                    if(fullAddress.indexOf('%')>0 && !fullAddress.contains("wlan")){
+                        String subaddress = fullAddress.substring(0, fullAddress.indexOf('%'));
+                        addressList.add(new AddressEntry(subaddress, nif.getName(), addr.isMulticastAddress()));
+                    } else {
+                        addressList.add(new AddressEntry(fullAddress, nif.getName(), addr.isMulticastAddress()));
+                    }
                 }
             }
         } catch (Exception ex) {
