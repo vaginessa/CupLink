@@ -20,7 +20,6 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import org.json.JSONObject;
-import org.libsodium.jni.Sodium;
 
 import java.io.File;
 import java.io.IOException;
@@ -107,16 +106,13 @@ public class MainService extends Service implements Runnable {
         // shutdown listening socket and say goodbye
         if (this.db != null && this.server != null && this.server.isBound() && !this.server.isClosed()) {
             try {
-                byte[] ownPublicKey = this.db.settings.getPublicKey();
-                byte[] ownSecretKey = this.db.settings.getSecretKey();
                 String message = "{\"action\": \"status_change\", \"status\", \"offline\"}";
 
                 for (Contact contact : this.db.contacts) {
                     if (contact.getState() == Contact.State.OFFLINE) {
                         continue;
                     }
-
-                    byte[] encrypted = Crypto.encryptMessage(message, contact.getPublicKey(), ownPublicKey, ownSecretKey);
+                    byte[] encrypted = message.getBytes("UTF-8");
                     if (encrypted == null) {
                         continue;
                     }
@@ -219,7 +215,7 @@ public class MainService extends Service implements Runnable {
             return;
         }
 
-        byte[] clientPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
+        byte[] clientPublicKey = new byte[0];
         byte[] ownSecretKey = this.db.settings.getSecretKey();
         byte[] ownPublicKey = this.db.settings.getPublicKey();
 
@@ -237,7 +233,7 @@ public class MainService extends Service implements Runnable {
                     break;
                 }
 
-                String decrypted = Crypto.decryptMessage(request, clientPublicKey, ownPublicKey, ownSecretKey);
+                String decrypted = new String(request, "UTF-8");
                 if (decrypted == null) {
                     log("decryption failed");
                     break;
@@ -295,7 +291,7 @@ public class MainService extends Service implements Runnable {
 
                         // respond that we accept the call
 
-                        byte[] encrypted = Crypto.encryptMessage("{\"action\":\"ringing\"}", contact.getPublicKey(), ownPublicKey, ownSecretKey);
+                        byte[] encrypted = "{\"action\":\"ringing\"}".getBytes("UTF-8");
                         pw.writeMessage(encrypted);
 
                         Intent intent = new Intent(this, CallActivity.class);
@@ -309,7 +305,7 @@ public class MainService extends Service implements Runnable {
                         log("got ping...");
                         // someone wants to know if we are online
                         binder.setContactState(contact.getPublicKey(), Contact.State.ONLINE);
-                        byte[] encrypted = Crypto.encryptMessage("{\"action\":\"pong\"}", contact.getPublicKey(), ownPublicKey, ownSecretKey);
+                        byte[] encrypted = "{\"action\":\"pong\"}".getBytes("UTF-8");
                         pw.writeMessage(encrypted);
                         break;
                     }
@@ -531,7 +527,8 @@ public class MainService extends Service implements Runnable {
 
                     log("send ping to " + contact.getName());
 
-                    byte[] encrypted = Crypto.encryptMessage("{\"action\":\"ping\"}", publicKey, ownPublicKey, ownSecretKey);
+                    byte[] encrypted = "{\"action\":\"ping\"}".getBytes("UTF-8");
+
                     if (encrypted == null) {
                         socket.close();
                         continue;
@@ -545,7 +542,7 @@ public class MainService extends Service implements Runnable {
                         continue;
                     }
 
-                    String decrypted = Crypto.decryptMessage(request, publicKey, ownPublicKey, ownSecretKey);
+                    String decrypted = new String(request, "UTF-8");
                     if (decrypted == null) {
                         log("decryption failed");
                         socket.close();

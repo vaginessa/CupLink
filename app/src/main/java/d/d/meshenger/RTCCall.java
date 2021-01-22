@@ -11,7 +11,6 @@ import android.util.TypedValue;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.libsodium.jni.Sodium;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.CameraEnumerator;
@@ -24,7 +23,6 @@ import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 import org.webrtc.SurfaceViewRenderer;
-//import org.webrtc.VideoCapturer;
 import org.webrtc.VideoTrack;
 
 import java.io.IOException;
@@ -128,7 +126,6 @@ public class RTCCall implements DataChannel.Observer {
                 @Override
                 public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
                     super.onIceGatheringChange(iceGatheringState);
-                    byte[] otherPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
 
                     if (iceGatheringState == PeerConnection.IceGatheringState.COMPLETE) {
                         log("transferring offer...");
@@ -158,7 +155,7 @@ public class RTCCall implements DataChannel.Observer {
                                 JSONObject obj = new JSONObject();
                                 obj.put("action", "call");
                                 obj.put("offer", connection.getLocalDescription().description);
-                                byte[] encrypted = Crypto.encryptMessage(obj.toString(), contact.getPublicKey(), ownPublicKey, ownSecretKey);
+                                byte[] encrypted = obj.toString().getBytes("UTF-8");
                                 if (encrypted == null) {
                                     log("encryption failed");
                                     closeCommSocket();
@@ -172,8 +169,8 @@ public class RTCCall implements DataChannel.Observer {
 
                             {
                                 byte[] response = pr.readMessage();
-                                String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
+                                String decrypted = new String(response, "UTF-8");
+                                if (decrypted == null) {
                                     log("decryption failed");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
@@ -193,8 +190,8 @@ public class RTCCall implements DataChannel.Observer {
 
                             {
                                 byte[] response = pr.readMessage();
-                                String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
+                                String decrypted = new String(response, "UTF-8");
+                                if (decrypted == null) {
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
                                     return;
@@ -490,7 +487,7 @@ public class RTCCall implements DataChannel.Observer {
                             JSONObject obj = new JSONObject();
                             obj.put("action", "connected");
                             obj.put("answer", connection.getLocalDescription().description);
-                            byte[] encrypted = Crypto.encryptMessage(obj.toString(), contact.getPublicKey(), ownPublicKey, ownSecretKey);
+                            byte[] encrypted = obj.toString().getBytes("UTF-8");
                             if (encrypted != null) {
                                 pw.writeMessage(encrypted);
                                 reportStateChange(CallState.CONNECTED);
@@ -563,7 +560,7 @@ public class RTCCall implements DataChannel.Observer {
                 log("declining...");
                 if (this.commSocket != null) {
                     PacketWriter pw = new PacketWriter(commSocket);
-                    byte[] encrypted = Crypto.encryptMessage("{\"action\":\"dismissed\"}", this.contact.getPublicKey(), this.ownPublicKey, this.ownSecretKey);
+                    byte[] encrypted = "{\"action\":\"dismissed\"}".getBytes("UTF-8");
                     pw.writeMessage(encrypted);
                 }
             } catch (IOException e) {
@@ -593,7 +590,7 @@ public class RTCCall implements DataChannel.Observer {
             try {
                 if (this.commSocket != null) {
                     PacketWriter pw = new PacketWriter(this.commSocket);
-                    byte[] encrypted = Crypto.encryptMessage("{\"action\":\"dismissed\"}", this.contact.getPublicKey(), this.ownPublicKey, this.ownSecretKey);
+                    byte[] encrypted = "{\"action\":\"dismissed\"}".getBytes("UTF-8");
                     pw.writeMessage(encrypted);
                 }
 

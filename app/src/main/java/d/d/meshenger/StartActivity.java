@@ -28,10 +28,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.libsodium.jni.Sodium;
-import org.libsodium.jni.NaCl;
-
-
 /*
  * Show splash screen, name setup dialog, database password dialog and
  * start background service before starting the MainActivity.
@@ -39,7 +35,6 @@ import org.libsodium.jni.NaCl;
 public class StartActivity extends MeshengerActivity implements ServiceConnection {
     private MainService.MainBinder binder;
     private int startState = 0;
-    private static Sodium sodium;
     private static final int IGNORE_BATTERY_OPTIMIZATION_REQUEST = 5223;
 
     @Override
@@ -47,9 +42,6 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_splash);
-
-        // load libsodium for JNI access
-        this.sodium = NaCl.sodium();
 
         Typeface type = Typeface.createFromAsset(getAssets(), "rounds_black.otf");
         ((TextView) findViewById(R.id.splashText)).setTypeface(type);
@@ -142,6 +134,7 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == IGNORE_BATTERY_OPTIMIZATION_REQUEST) {
             // resultCode: -1 (Allow), 0 (Deny)
             continueInit();
@@ -178,16 +171,6 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
     }
 
     private void initKeyPair() {
-        // create secret/public key pair
-        final byte[] publicKey = new byte[Sodium.crypto_sign_publickeybytes()];
-        final byte[] secretKey = new byte[Sodium.crypto_sign_secretkeybytes()];
-
-        Sodium.crypto_sign_keypair(publicKey, secretKey);
-
-        Settings settings = this.binder.getSettings();
-        settings.setPublicKey(publicKey);
-        settings.setSecretKey(secretKey);
-
         try {
             this.binder.saveDatabase();
         } catch (Exception e) {

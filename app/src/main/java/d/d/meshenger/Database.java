@@ -69,8 +69,6 @@ class Database {
 
         // encrypt database
         if (password != null && password.length() > 0) {
-            data = Crypto.decryptDatabase(data, password.getBytes());
-
             if (data == null) {
                 throw new IOException("wrong database password.");
             }
@@ -94,12 +92,6 @@ class Database {
     public static void store(String path, Database db, String password) throws IOException, JSONException {
         JSONObject obj = Database.toJSON(db);
         byte[] data = obj.toString().getBytes();
-
-        // encrypt database
-        if (password != null && password.length() > 0) {
-            data = Crypto.encryptDatabase(data, password.getBytes());
-        }
-
         // write database file
         Utils.writeExternalFile(path, data);
     }
