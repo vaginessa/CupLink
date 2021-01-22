@@ -198,8 +198,8 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
     private String getMacOfDevice(String device) {
         for (AddressEntry ae : Utils.collectAddresses()) {
             // only MAC addresses
-            if (ae.device.equals("wlan0") && Utils.isMAC(ae.address)) {
-                return ae.address;
+            if (ae.device.equals("wlan0") && Utils.isMAC(ae.address.getHostName())) {
+                return ae.address.getHostAddress();
             }
         }
         return "";

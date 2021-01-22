@@ -1,5 +1,7 @@
 package d.d.meshenger;
 
+import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -8,11 +10,11 @@ import java.util.List;
  * Item for address management (AddressActivity)
  */
 public class AddressEntry implements Comparable<AddressEntry> {
-    String address;
+    InetAddress address;
     String device;
     boolean multicast;
 
-    AddressEntry(String address, String device, boolean multicast) {
+    AddressEntry(InetAddress address, String device, boolean multicast) {
         this.address = address;
         this.device = device;
         this.multicast = multicast;
@@ -20,18 +22,18 @@ public class AddressEntry implements Comparable<AddressEntry> {
 
     @Override
     public int compareTo(AddressEntry e) {
-        return this.address.compareTo(e.address);
+        return Arrays.equals(this.address.getAddress(),e.address.getAddress())? 0:-1;
     }
 
     @Override
     public String toString() {
-        return this.address;
+        return this.address.getHostAddress();
     }
 
     @Override
     public boolean equals(Object other) {
         if (other instanceof AddressEntry) {
-            return this.address.equals(((AddressEntry) other).address);
+            return Arrays.equals(this.address.getAddress(),((AddressEntry) other).address.getAddress());
         } else {
             return super.equals(other);
         }

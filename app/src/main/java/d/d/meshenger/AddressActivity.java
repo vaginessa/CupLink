@@ -20,6 +20,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -91,11 +93,18 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
                 return;
             }
 
-            AddressEntry entry = parseAddress(address);
+            AddressEntry entry = null;
+            try {
+                entry = parseAddress(address);
+
 
             if (entry.multicast) {
                 Toast.makeText(this, "Multicast addresses are not supported.", Toast.LENGTH_SHORT).show();
                 return;
+            }
+
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
             }
 
             if ((Utils.isMAC(address) || Utils.isIP(address)) && !systemAddressList.contains(entry)) {
@@ -117,7 +126,12 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
                 return;
             }
 
-            int idx = AddressEntry.listIndexOf(storedAddressList, new AddressEntry(address, "", false));
+            int idx = 0;
+            try {
+                idx = AddressEntry.listIndexOf(storedAddressList, new AddressEntry(InetAddress.getByName(address), "", false));
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            }
             if (idx > -1) {
                 storedAddressList.remove(idx);
                 updateSpinners();
@@ -127,21 +141,21 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
         pickSystemAddressButton.setOnClickListener((View v) -> {
             int pos = systemAddressSpinner.getSelectedItemPosition();
             if (pos > -1 && !systemAddressListAdapter.isEmpty()) {
-                addressEditText.setText(systemAddressList.get(pos).address);
+                addressEditText.setText(systemAddressList.get(pos).address.getHostAddress());
             }
         });
 
         pickStoredAddressButton.setOnClickListener((View v) -> {
             int pos = storedAddressSpinner.getSelectedItemPosition();
             if (pos > -1 && !storedAddressListAdapter.isEmpty()) {
-                addressEditText.setText(storedAddressList.get(pos).address);
+                addressEditText.setText(storedAddressList.get(pos).address.getHostAddress());
             }
         });
 
         saveButton.setOnClickListener((View v) -> {
             ArrayList<String> addresses = new ArrayList<>();
             for (AddressEntry ae : this.storedAddressList) {
-                addresses.add(ae.address);
+                addresses.add(ae.address.getHostAddress());
             }
             this.binder.getSettings().setAddresses(addresses);
             this.binder.saveDatabase();
@@ -173,7 +187,11 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
 
         // get from settings
         for (String address : this.binder.getSettings().getAddresses()) {
-            this.storedAddressList.add(parseAddress(address));
+            try {
+                this.storedAddressList.add(parseAddress(address));
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            }
         }
 
         updateSpinners();
@@ -287,7 +305,7 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
         Comparator<AddressEntry> compareAddressEntries = (AddressEntry o1, AddressEntry o2) -> {
             int dd = o1.device.compareTo(o2.device);
             if (dd == 0) {
-                return o1.address.compareTo(o2.address);
+                return o1.compareTo(o2);
             } else {
                 return dd;
             }
@@ -315,16 +333,16 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
      * Create AddressEntry from address string.
      * Do not perform any domain lookup
     */
-    AddressEntry parseAddress(String address) {
+    AddressEntry parseAddress(String address) throws UnknownHostException {
         // instead of parsing, lookup in known addresses first
         AddressEntry ae = AddressEntry.findAddressEntry(systemAddressList, address);
         if (ae != null) {
             // known address
-            return new AddressEntry(address, ae.device, ae.multicast);
+            return new AddressEntry(InetAddress.getByName(address), ae.device, ae.multicast);
         } else if (Utils.isMAC(address)) {
             // MAC address
             boolean mc = Utils.isMulticastMAC(Utils.macAddressToBytes(address));
-            return new AddressEntry(address, "", mc);
+            return new AddressEntry(InetAddress.getByName(address), "", mc);
         } else if (Utils.isIP(address)) {
             // IP address
             boolean mc = false;
@@ -333,10 +351,10 @@ public class AddressActivity extends MeshengerActivity implements ServiceConnect
             } catch (Exception e) {
                 // ignore
             }
-            return new AddressEntry(address, "", mc);
+            return new AddressEntry(InetAddress.getByName(address), "", mc);
         } else {
             // domain
-            return new AddressEntry(address, "", false);
+            return new AddressEntry(InetAddress.getByName(address), "", false);
         }
     }
 
