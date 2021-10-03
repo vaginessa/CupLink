@@ -9,7 +9,7 @@ import java.util.Arrays;
 
 class Crypto {
     // for development / testing only
-    private static boolean disable_crypto = true;
+    public static boolean disable_crypto = true;
 
     // decrypt database using a password
     public static byte[] decryptDatabase(byte[] encrypted_message, byte[] password) {
@@ -43,9 +43,9 @@ class Crypto {
         // hash password into key
         byte[] key = new byte[Sodium.crypto_box_seedbytes()];
         int rc1 = Sodium.crypto_pwhash(key, key.length, password, password.length, salt,
-            Sodium.crypto_pwhash_opslimit_interactive(),
-            Sodium.crypto_pwhash_memlimit_interactive(),
-            Sodium.crypto_pwhash_alg_default());
+                Sodium.crypto_pwhash_opslimit_interactive(),
+                Sodium.crypto_pwhash_memlimit_interactive(),
+                Sodium.crypto_pwhash_alg_default());
 
         // decrypt
         byte[] decrypted_data = new byte[encrypted_data.length - SodiumConstants.MAC_BYTES];

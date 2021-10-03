@@ -1,22 +1,13 @@
 package d.d.meshenger;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.Nullable;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.annotation.Nullable;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import org.json.JSONObject;
@@ -30,8 +21,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static android.support.v4.app.NotificationCompat.PRIORITY_MIN;
 
 
 public class MainService extends Service implements Runnable {
@@ -47,10 +36,6 @@ public class MainService extends Service implements Runnable {
     private RTCCall currentCall = null;
 
     private ArrayList<CallEvent> events = null;
-
-    private MainBinder mainBinder = new MainBinder(this);
-
-    private int NOTIFICATION = 42;
 
     @Override
     public void onCreate() {
@@ -154,71 +139,12 @@ public class MainService extends Service implements Runnable {
         }
     }
 
-    private void showNotification() {
-        String channelId = "meshenger_service";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel chan = new NotificationChannel(channelId, "Meshenger Background Service", NotificationManager.IMPORTANCE_DEFAULT);
-            chan.setLightColor(Color.RED);
-            chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-            NotificationManager service = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            service.createNotificationChannel(chan);
-        }
-
-        // start MainActivity
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingNotificationIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-
-        Context mActivity = getApplicationContext();
-        Notification notification = new NotificationCompat.Builder(mActivity, channelId)
-                .setOngoing(true)
-                .setSmallIcon(R.drawable.ic_logo)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo_small))
-                .setPriority(PRIORITY_MIN)
-                .setCategory(Notification.CATEGORY_SERVICE)
-                .setContentText(getResources().getText(R.string.listen_for_incoming_calls))
-                .setContentIntent(pendingNotificationIntent)
-                .build();
-
-        startForeground(NOTIFICATION, notification);
-    }
-
-    final static String START_FOREGROUND_ACTION = "START_FOREGROUND_ACTION";
-    final static String STOP_FOREGROUND_ACTION = "STOP_FOREGROUND_ACTION";
-
-    public static void start(Context ctx) {
-        Intent startIntent = new Intent(ctx, MainService.class);
-        startIntent.setAction(START_FOREGROUND_ACTION);
-        ContextCompat.startForegroundService(ctx, startIntent);
-    }
-
-    public static void stop(Context ctx) {
-        Intent stopIntent = new Intent(ctx, MainService.class);
-        stopIntent.setAction(STOP_FOREGROUND_ACTION);
-        ctx.startService(stopIntent);
-    }
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null || intent.getAction() == null) {
-            // ignore
-        } else if (intent.getAction().equals(START_FOREGROUND_ACTION)) {
-            log("Received Start Foreground Intent");
-            showNotification();
-        } else if (intent.getAction().equals(STOP_FOREGROUND_ACTION)) {
-            log("Received Stop Foreground Intent");
-            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(NOTIFICATION);
-            stopForeground(true);
-            stopSelf();
-        }
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
-    private void handleClient(MainBinder binder, Socket client) {
-        // just a precaution
-        if (this.db == null) {
-            return;
-        }
-
+    private void handleClient(Socket client) {
         byte[] clientPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
         byte[] ownSecretKey = this.db.settings.getSecretKey();
         byte[] ownPublicKey = this.db.settings.getPublicKey();
@@ -272,9 +198,9 @@ public class MainService extends Service implements Runnable {
                     }
                 }
 
-                // suspicious change of identity during connection...
+                // suspicious change of identity in during connection...
                 if (!Arrays.equals(contact.getPublicKey(), clientPublicKey)) {
-                    log("suspicious change of identity");
+                    log("suspicious change of key");
                     continue;
                 }
 
@@ -289,9 +215,9 @@ public class MainService extends Service implements Runnable {
                 switch (action) {
                     case "call": {
                         // someone calls us
-                        log("got call...");
+                        log("call...");
                         String offer = obj.getString("offer");
-                        this.currentCall = new RTCCall(this, binder, contact, client, offer);
+                        this.currentCall = new RTCCall(this, new MainBinder(), contact, client, offer);
 
                         // respond that we accept the call
 
@@ -306,16 +232,17 @@ public class MainService extends Service implements Runnable {
                         return;
                     }
                     case "ping": {
-                        log("got ping...");
+                        log("ping...");
                         // someone wants to know if we are online
-                        binder.setContactState(contact.getPublicKey(), Contact.State.ONLINE);
+                        setClientState(contact, Contact.State.ONLINE);
+
                         byte[] encrypted = Crypto.encryptMessage("{\"action\":\"pong\"}", contact.getPublicKey(), ownPublicKey, ownSecretKey);
                         pw.writeMessage(encrypted);
                         break;
                     }
                     case "status_change": {
                         if (obj.optString("status", "").equals("offline")) {
-                            binder.setContactState(contact.getPublicKey(), Contact.State.OFFLINE);
+                            setClientState(contact, Contact.State.OFFLINE);
                         } else {
                             log("Received unknown status_change: " + obj.getString("status"));
                         }
@@ -323,9 +250,8 @@ public class MainService extends Service implements Runnable {
                 }
             }
 
-            log("call disconnected");
+            log("client disconnected");
             LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent("call_declined"));
-
         } catch (Exception e) {
             e.printStackTrace();
             log("client disconnected (exception)");
@@ -336,6 +262,10 @@ public class MainService extends Service implements Runnable {
 
         // zero out key
         Arrays.fill(clientPublicKey, (byte) 0);
+    }
+
+    private void setClientState(Contact contact, Contact.State state) {
+        contact.setState(Contact.State.ONLINE);
     }
 
     @Override
@@ -351,12 +281,11 @@ public class MainService extends Service implements Runnable {
             }
 
             server = new ServerSocket(serverPort);
-            MainBinder binder = (MainBinder) onBind(null);
 
             while (this.run) {
                 try {
                     Socket socket = server.accept();
-                    new Thread(() -> handleClient(binder, socket)).start();
+                    new Thread(() -> handleClient(socket)).start();
                 } catch (IOException e) {
                     // ignore
                 }
@@ -372,27 +301,17 @@ public class MainService extends Service implements Runnable {
     /*
     * Allows communication between MainService and other objects
     */
-    static class MainBinder extends Binder {
-        private MainService service;
-
-        MainBinder(MainService service) {
-            this.service = service;
-        }
-
-        Context getContext() {
-            return this.service;
-        }
-
+    class MainBinder extends Binder {
         RTCCall getCurrentCall() {
-            return this.service.currentCall;
+            return currentCall;
         }
 
         boolean isFirstStart() {
-            return this.service.first_start;
+            return MainService.this.first_start;
         }
 
         Contact getContactByPublicKey(byte[] pubKey) {
-            for (Contact contact : this.service.db.contacts) {
+            for (Contact contact : MainService.this.db.contacts) {
                 if (Arrays.equals(contact.getPublicKey(), pubKey)) {
                     return contact;
                 }
@@ -401,7 +320,7 @@ public class MainService extends Service implements Runnable {
         }
 
         Contact getContactByName(String name) {
-            for (Contact contact : this.service.db.contacts) {
+            for (Contact contact : MainService.this.db.contacts) {
                 if (contact.getName().equals(name)) {
                     return contact;
                 }
@@ -410,56 +329,51 @@ public class MainService extends Service implements Runnable {
         }
 
         void addContact(Contact contact) {
-            this.service.db.addContact(contact);
+            db.addContact(contact);
             saveDatabase();
-            LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_contact_list"));
+            LocalBroadcastManager.getInstance(MainService.this).sendBroadcast(new Intent("refresh_contact_list"));
         }
 
         void deleteContact(byte[] pubKey) {
-            this.service.db.deleteContact(pubKey);
+            db.deleteContact(pubKey);
             saveDatabase();
-            LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_contact_list"));
+            LocalBroadcastManager.getInstance(MainService.this).sendBroadcast(new Intent("refresh_contact_list"));
         }
 
-        void setContactState(byte[] publicKey, Contact.State state) {
-            Contact contact = getContactByPublicKey(publicKey);
-            if (contact != null && contact.getState() != state) {
-                contact.setState(state);
-                LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_contact_list"));
-            }
+        void shutdown() {
+            MainService.this.stopSelf();
         }
 
         String getDatabasePassword() {
-            return this.service.database_password;
+            return MainService.this.database_password;
         }
 
         void setDatabasePassword(String password) {
-            this.service.database_password = password;
+            MainService.this.database_password = password;
         }
 
         Database getDatabase() {
-            return this.service.db;
+            return MainService.this.db;
         }
 
         void loadDatabase() {
-            this.service.loadDatabase();
+            MainService.this.loadDatabase();
         }
 
         void replaceDatabase(Database db) {
             if (db != null) {
-                if (this.service.db == null) {
-                    this.service.db = db;
+                if (MainService.this.db == null) {
+                    MainService.this.db = db;
                 } else {
-                    this.service.db = db;
+                    MainService.this.db = db;
                     saveDatabase();
                 }
             }
         }
 
         void pingContacts() {
-            Log.d(this, "pingContacts");
             new Thread(new PingRunnable(
-                this,
+                MainService.this,
                 getContactsCopy(),
                 getSettings().getPublicKey(),
                 getSettings().getSecretKey())
@@ -467,50 +381,59 @@ public class MainService extends Service implements Runnable {
         }
 
         void saveDatabase() {
-            this.service.saveDatabase();
+            MainService.this.saveDatabase();
         }
 
         Settings getSettings() {
-            return this.service.db.settings;
+            return MainService.this.db.settings;
         }
 
         // return a cloned list
         List<Contact> getContactsCopy() {
-           return new ArrayList<>(this.service.db.contacts);
+           return new ArrayList<>(MainService.this.db.contacts);
         }
 
         void addCallEvent(Contact contact, CallEvent.Type type) {
             InetSocketAddress last_working = contact.getLastWorkingAddress();
-            this.service.events.add(new CallEvent(
+            MainService.this.events.add(new CallEvent(
                 contact.getPublicKey(),
                     (last_working != null) ? last_working.getAddress() : null,
                 type
             ));
-            LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_event_list"));
+            LocalBroadcastManager.getInstance(MainService.this).sendBroadcast(new Intent("refresh_event_list"));
         }
 
         // return a cloned list
         List<CallEvent> getEventsCopy() {
-            return new ArrayList<>(this.service.events);
+            return new ArrayList<>(MainService.this.events);
         }
 
         void clearEvents() {
-            this.service.events.clear();
-            LocalBroadcastManager.getInstance(this.service).sendBroadcast(new Intent("refresh_event_list"));
+            MainService.this.events.clear();
+            LocalBroadcastManager.getInstance(MainService.this).sendBroadcast(new Intent("refresh_event_list"));
         }
     }
 
-    static class PingRunnable implements Runnable {
+    class PingRunnable implements Runnable {
+        Context context;
         private List<Contact> contacts;
         byte[] ownPublicKey;
         byte[] ownSecretKey;
         MainBinder binder;
 
-        PingRunnable(MainBinder binder, List<Contact> contacts, byte[] ownPublicKey, byte[] ownSecretKey) {
-            this.binder = binder;
+        PingRunnable(Context context, List<Contact> contacts, byte[] ownPublicKey, byte[] ownSecretKey) {
+            this.context = context;
             this.contacts = contacts;
             this.ownPublicKey = ownPublicKey;
             this.ownSecretKey = ownSecretKey;
+            this.binder = new MainBinder();
+        }
+
+        private void setState(byte[] publicKey, Contact.State state) {
+            Contact contact = this.binder.getContactByPublicKey(publicKey);
+            if (contact != null) {
+                contact.setState(state);
+            }
         }
 
         @Override
@@ -518,11 +441,11 @@ public class MainService extends Service implements Runnable {
             for (Contact contact : contacts) {
                 Socket socket = null;
                 byte[] publicKey = contact.getPublicKey();
-
                 try {
+
                     socket = contact.createSocket();
                     if (socket == null) {
-                        this.binder.setContactState(publicKey, Contact.State.OFFLINE);
+                        setState(publicKey, Contact.State.OFFLINE);
                         continue;
                     }
 
@@ -556,12 +479,12 @@ public class MainService extends Service implements Runnable {
                     String action = obj.optString("action", "");
                     if (action.equals("pong")) {
                         log("got pong");
-                        this.binder.setContactState(publicKey, Contact.State.ONLINE);
+                        setState(publicKey, Contact.State.ONLINE);
                     }
 
                     socket.close();
                 } catch (Exception e) {
-                    this.binder.setContactState(publicKey, Contact.State.OFFLINE);
+                    setState(publicKey, Contact.State.OFFLINE);
                     if (socket != null) {
                         try {
                             socket.close();
@@ -574,18 +497,15 @@ public class MainService extends Service implements Runnable {
             }
 
             log("send refresh_contact_list");
-            LocalBroadcastManager.getInstance(this.binder.getContext()).sendBroadcast(new Intent("refresh_contact_list"));
-        }
-
-        private void log(String data) {
-            Log.d(this, data);
+            LocalBroadcastManager.getInstance(context).sendBroadcast(new Intent("refresh_contact_list"));
         }
     }
+
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return mainBinder;
+        return new MainBinder();
     }
 
     private void log(String data) {

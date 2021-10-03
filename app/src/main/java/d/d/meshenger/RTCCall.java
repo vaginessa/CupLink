@@ -5,8 +5,8 @@ import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.ColorInt;
-import android.support.v7.app.AppCompatDelegate;
+import androidx.annotation.ColorInt;
+import androidx.appcompat.app.AppCompatDelegate;
 import android.util.TypedValue;
 
 import org.json.JSONException;
@@ -86,11 +86,13 @@ public class RTCCall implements DataChannel.Observer {
         this.binder = binder;
         this.ownPublicKey = binder.getSettings().getPublicKey();
         this.ownSecretKey = binder.getSettings().getSecretKey();
+        this.ownPublicKey = ownPublicKey;
+        this.ownSecretKey = ownSecretKey;
         this.offer = offer;
 
         // usually empty
         this.iceServers = new ArrayList<>();
-        for (String server : this.binder.getSettings().getIceServers()) {
+        for (String server : binder.getSettings().getIceServers()) {
             this.iceServers.add(PeerConnection.IceServer.builder(server).createIceServer());
         }
 
@@ -160,7 +162,7 @@ public class RTCCall implements DataChannel.Observer {
                                 obj.put("offer", connection.getLocalDescription().description);
                                 byte[] encrypted = Crypto.encryptMessage(obj.toString(), contact.getPublicKey(), ownPublicKey, ownSecretKey);
                                 if (encrypted == null) {
-                                    log("encryption failed");
+                                    log("encrypted var is null");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
                                     //RTCCall.this.binder.addCallEvent(contact, CallEvent.Type.OUTGOING_ERROR);
@@ -173,8 +175,8 @@ public class RTCCall implements DataChannel.Observer {
                             {
                                 byte[] response = pr.readMessage();
                                 String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
-                                    log("decryption failed");
+                                if (decrypted == null || (!Arrays.equals(contact.getPublicKey(), otherPublicKey) && !Crypto.disable_crypto)) {
+                                    log("decrypted var is null or pubkey does not match");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
                                     //RTCCall.this.binder.addCallEvent(contact, CallEvent.Type.OUTGOING_ERROR);
@@ -182,6 +184,7 @@ public class RTCCall implements DataChannel.Observer {
                                 }
                                 JSONObject obj = new JSONObject(decrypted);
                                 if (!obj.optString("action", "").equals("ringing")) {
+                                    log("action not equals ringing");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
                                     //RTCCall.this.binder.addCallEvent(contact, CallEvent.Type.OUTGOING_ERROR);
@@ -194,7 +197,8 @@ public class RTCCall implements DataChannel.Observer {
                             {
                                 byte[] response = pr.readMessage();
                                 String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
+                                if (decrypted == null || (!Arrays.equals(contact.getPublicKey(), otherPublicKey) && !Crypto.disable_crypto)) {
+                                    log("decrypted (201) var is null or pubkey does not match");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
                                     return;
@@ -209,6 +213,7 @@ public class RTCCall implements DataChannel.Observer {
                                     // contact accepted receiving call
                                     //RTCCall.this.binder.addCallEvent(contact, CallEvent.Type.OUTGOING_ACCEPTED);
                                 } else if (action.equals("dismissed")) {
+                                    log("dismissed");
                                     closeCommSocket();
                                     reportStateChange(CallState.DISMISSED);
                                     // contact declined receiving call
@@ -231,7 +236,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("onIceGatheringChange.onIceConnectionChange " + iceConnectionState.name());
+                    log("onIceConnectionChange " + iceConnectionState.name());
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);
@@ -348,7 +353,7 @@ public class RTCCall implements DataChannel.Observer {
         });
     }
 
-    public boolean isVideoEnabled() {
+    public boolean isVideoEnabled(){
         return this.videoEnabled;
     }
 
@@ -438,7 +443,7 @@ public class RTCCall implements DataChannel.Observer {
 
     private VideoTrack getVideoTrack() {
         this.capturer = createCapturer();
-        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer.isScreencast()));
+        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer));
     }
 
     private void initRTC(Context c) {
@@ -507,7 +512,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("accept.onIceConnectionChange " + iceConnectionState.name());
+                    log("onIceConnectionChange");
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);
