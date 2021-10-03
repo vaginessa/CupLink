@@ -11,7 +11,6 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import org.json.JSONObject;
-import org.libsodium.jni.Sodium;
 
 import java.io.File;
 import java.io.IOException;
@@ -145,7 +144,7 @@ public class MainService extends Service implements Runnable {
     }
 
     private void handleClient(Socket client) {
-        byte[] clientPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
+
         byte[] ownSecretKey = this.db.settings.getSecretKey();
         byte[] ownPublicKey = this.db.settings.getPublicKey();
 
@@ -163,7 +162,7 @@ public class MainService extends Service implements Runnable {
                     break;
                 }
 
-                String decrypted = Crypto.decryptMessage(request, clientPublicKey, ownPublicKey, ownSecretKey);
+                String decrypted = Crypto.decryptMessage(request, null, ownPublicKey, ownSecretKey);
                 if (decrypted == null) {
                     log("decryption failed");
                     break;
@@ -171,7 +170,7 @@ public class MainService extends Service implements Runnable {
 
                 if (contact == null) {
                     for (Contact c : this.db.contacts) {
-                        if (Arrays.equals(c.getPublicKey(), clientPublicKey)) {
+                        if (c.getAddresses().contains(remote_address.getHostName())) {
                             contact = c;
                         }
                     }
@@ -194,12 +193,12 @@ public class MainService extends Service implements Runnable {
 
                     if (contact == null) {
                         // unknown caller
-                        contact = new Contact("", clientPublicKey.clone(), new ArrayList<>());
+                        contact = new Contact("", null, new ArrayList<>());
                     }
                 }
 
                 // suspicious change of identity in during connection...
-                if (!Arrays.equals(contact.getPublicKey(), clientPublicKey)) {
+                if (!contact.getAddresses().contains(remote_address.getHostName())) {
                     log("suspicious change of key");
                     continue;
                 }
@@ -259,9 +258,6 @@ public class MainService extends Service implements Runnable {
                 this.currentCall.decline();
             }
         }
-
-        // zero out key
-        Arrays.fill(clientPublicKey, (byte) 0);
     }
 
     private void setClientState(Contact contact, Contact.State state) {

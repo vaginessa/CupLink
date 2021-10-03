@@ -11,7 +11,6 @@ import android.util.TypedValue;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.libsodium.jni.Sodium;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.CameraEnumerator;
@@ -86,8 +85,6 @@ public class RTCCall implements DataChannel.Observer {
         this.binder = binder;
         this.ownPublicKey = binder.getSettings().getPublicKey();
         this.ownSecretKey = binder.getSettings().getSecretKey();
-        this.ownPublicKey = ownPublicKey;
-        this.ownSecretKey = ownSecretKey;
         this.offer = offer;
 
         // usually empty
@@ -126,11 +123,12 @@ public class RTCCall implements DataChannel.Observer {
         }
 
         new Thread(() -> {
+            //factory.createPeerConnection(PeerConnection.RTCConfiguration)
             connection = factory.createPeerConnection(Collections.emptyList(), new DefaultObserver() {
                 @Override
                 public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
                     super.onIceGatheringChange(iceGatheringState);
-                    byte[] otherPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
+                    byte[] otherPublicKey = null;
 
                     if (iceGatheringState == PeerConnection.IceGatheringState.COMPLETE) {
                         log("transferring offer...");
@@ -175,7 +173,7 @@ public class RTCCall implements DataChannel.Observer {
                             {
                                 byte[] response = pr.readMessage();
                                 String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || (!Arrays.equals(contact.getPublicKey(), otherPublicKey) && !Crypto.disable_crypto)) {
+                                if (decrypted == null || !Crypto.disable_crypto) {
                                     log("decrypted var is null or pubkey does not match");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
