@@ -16,6 +16,8 @@ import android.os.IBinder;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
+
+import android.os.PowerManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -33,6 +35,7 @@ import android.widget.Toast;
  * start background service before starting the MainActivity.
  */
 public class StartActivity extends MeshengerActivity implements ServiceConnection {
+    private static final int IGNORE_BATTERY_OPTIMIZATION_REQUEST = 101;
     private MainService.MainBinder binder;
     private int startState = 0;
 
@@ -133,6 +136,7 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == IGNORE_BATTERY_OPTIMIZATION_REQUEST) {
             // resultCode: -1 (Allow), 0 (Deny)
             continueInit();

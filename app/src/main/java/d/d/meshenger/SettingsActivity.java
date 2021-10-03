@@ -13,6 +13,8 @@ import android.os.IBinder;
 import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatDelegate;
+
+import android.os.PowerManager;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;

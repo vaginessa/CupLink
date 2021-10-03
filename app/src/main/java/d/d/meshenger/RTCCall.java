@@ -442,7 +442,7 @@ public class RTCCall implements DataChannel.Observer {
 
     private VideoTrack getVideoTrack() {
         this.capturer = createCapturer();
-        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer.isScreencast()));
+        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer));
     }
 
     private void initRTC(Context c) {

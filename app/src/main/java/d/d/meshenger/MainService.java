@@ -15,6 +15,8 @@ import android.os.Handler;
 import android.os.IBinder;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.widget.Toast;
 
@@ -28,9 +30,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static android.support.v4.app.NotificationCompat.PRIORITY_MIN;
-
 
 public class MainService extends Service implements Runnable {
     private Database db = null;
@@ -171,7 +170,7 @@ public class MainService extends Service implements Runnable {
                 .setOngoing(true)
                 .setSmallIcon(R.drawable.ic_logo)
                 .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo_small))
-                .setPriority(PRIORITY_MIN)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setContentText(getResources().getText(R.string.listen_for_incoming_calls))
                 .setContentIntent(pendingNotificationIntent)
@@ -211,7 +210,12 @@ public class MainService extends Service implements Runnable {
         return START_NOT_STICKY;
     }
 
-    private void handleClient(Socket client) {
+    private void handleClient(MainBinder binder, Socket client) {
+
+        // just a precaution
+        if (this.db == null) {
+            return;
+        }
 
         byte[] ownSecretKey = this.db.settings.getSecretKey();
         byte[] ownPublicKey = this.db.settings.getPublicKey();
@@ -222,6 +226,7 @@ public class MainService extends Service implements Runnable {
             Contact contact = null;
 
             InetSocketAddress remote_address = (InetSocketAddress) client.getRemoteSocketAddress();
+            byte[] clientPublicKey = remote_address.getAddress().getAddress();
             log("incoming connection from " + remote_address);
 
             while (true) {
