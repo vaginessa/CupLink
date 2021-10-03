@@ -3,13 +3,17 @@ package d.d.meshenger;
 import android.app.Dialog;
 import android.app.Service;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Typeface;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
 import android.text.Editable;
@@ -24,10 +28,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.libsodium.jni.Sodium;
-import org.libsodium.jni.NaCl;
-
-
 /*
  * Show splash screen, name setup dialog, database password dialog and
  * start background service before starting the MainActivity.
@@ -35,7 +35,6 @@ import org.libsodium.jni.NaCl;
 public class StartActivity extends MeshengerActivity implements ServiceConnection {
     private MainService.MainBinder binder;
     private int startState = 0;
-    private static Sodium sodium;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,17 +42,20 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
 
         setContentView(R.layout.activity_splash);
 
-        // load libsodium for JNI access
-        this.sodium = NaCl.sodium();
-
         Typeface type = Typeface.createFromAsset(getAssets(), "rounds_black.otf");
         ((TextView) findViewById(R.id.splashText)).setTypeface(type);
 
         // start MainService and call back via onServiceConnected()
-        startService(new Intent(this, MainService.class));
+        MainService.start(this);
+
+        bindService(new Intent(this, MainService.class), this, Service.BIND_AUTO_CREATE);
     }
 
     private void continueInit() {
+        if (this.binder == null) {
+            return;
+        }
+
         this.startState += 1;
 
         switch (this.startState) {
@@ -98,7 +100,24 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
                 }
                 break;
             case 6:
-               log("init 6: start contact list");
+                log("init 6: battery optimizations");
+                if (this.binder.isFirstStart() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        PowerManager pMgr = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+                        if (!pMgr.isIgnoringBatteryOptimizations(this.getPackageName())) {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                            intent.setData(Uri.parse("package:" + this.getPackageName()));
+                            startActivityForResult(intent, IGNORE_BATTERY_OPTIMIZATION_REQUEST);
+                            break;
+                        }
+                    } catch(Exception e) {
+                        // ignore
+                    }
+                }
+                continueInit();
+                break;
+            case 7:
+               log("init 7: start contact list");
                 // set night mode
                 boolean nightMode = this.binder.getSettings().getNightMode();
                 AppCompatDelegate.setDefaultNightMode(
@@ -109,6 +128,14 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
                 startActivity(new Intent(this, MainActivity.class));
                 finish();
                 break;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == IGNORE_BATTERY_OPTIMIZATION_REQUEST) {
+            // resultCode: -1 (Allow), 0 (Deny)
+            continueInit();
         }
     }
 
@@ -136,23 +163,15 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        bindService(new Intent(this, MainService.class), this, Service.BIND_AUTO_CREATE);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
+    protected void onDestroy() {
+        super.onDestroy();
         unbindService(this);
     }
 
     private void initKeyPair() {
         // create secret/public key pair
-        final byte[] publicKey = new byte[Sodium.crypto_sign_publickeybytes()];
-        final byte[] secretKey = new byte[Sodium.crypto_sign_secretkeybytes()];
-
-        Sodium.crypto_sign_keypair(publicKey, secretKey);
+        final byte[] publicKey = null;
+        final byte[] secretKey = null;
 
         Settings settings = this.binder.getSettings();
         settings.setPublicKey(publicKey);
@@ -166,6 +185,7 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
     }
 
     private void showMissingAddressDialog() {
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Setup");
         builder.setMessage("There is something to configure. Just tap skip button.");
@@ -208,7 +228,7 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
         builder.setTitle(R.string.hello);
         builder.setView(layout);
         builder.setNegativeButton(R.string.cancel, (dialogInterface, i) -> {
-            this.binder.shutdown();
+            this.stopService(new Intent(this, MainService.class));
             finish();
         });
 
@@ -299,7 +319,7 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
         exitButton.setOnClickListener((View v) -> {
             // shutdown app
             dialog.dismiss();
-            this.binder.shutdown();
+            this.stopService(new Intent(this, MainService.class));
             finish();
         });
 

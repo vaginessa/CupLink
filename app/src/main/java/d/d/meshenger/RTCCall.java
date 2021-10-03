@@ -11,7 +11,6 @@ import android.util.TypedValue;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.libsodium.jni.Sodium;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.CameraEnumerator;
@@ -86,13 +85,11 @@ public class RTCCall implements DataChannel.Observer {
         this.binder = binder;
         this.ownPublicKey = binder.getSettings().getPublicKey();
         this.ownSecretKey = binder.getSettings().getSecretKey();
-        this.ownPublicKey = ownPublicKey;
-        this.ownSecretKey = ownSecretKey;
         this.offer = offer;
 
         // usually empty
         this.iceServers = new ArrayList<>();
-        for (String server : binder.getSettings().getIceServers()) {
+        for (String server : this.binder.getSettings().getIceServers()) {
             this.iceServers.add(PeerConnection.IceServer.builder(server).createIceServer());
         }
 
@@ -126,11 +123,12 @@ public class RTCCall implements DataChannel.Observer {
         }
 
         new Thread(() -> {
+            //factory.createPeerConnection(PeerConnection.RTCConfiguration)
             connection = factory.createPeerConnection(Collections.emptyList(), new DefaultObserver() {
                 @Override
                 public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
                     super.onIceGatheringChange(iceGatheringState);
-                    byte[] otherPublicKey = new byte[Sodium.crypto_sign_publickeybytes()];
+                    byte[] otherPublicKey = null;
 
                     if (iceGatheringState == PeerConnection.IceGatheringState.COMPLETE) {
                         log("transferring offer...");
@@ -175,7 +173,8 @@ public class RTCCall implements DataChannel.Observer {
                             {
                                 byte[] response = pr.readMessage();
                                 String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || (!Arrays.equals(contact.getPublicKey(), otherPublicKey) && !Crypto.disable_crypto)) {
+                              
+                                if (decrypted == null || !Crypto.disable_crypto) {
                                     log("decrypted var is null or pubkey does not match");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
@@ -236,7 +235,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("onIceConnectionChange " + iceConnectionState.name());
+                    log("onIceGatheringChange.onIceConnectionChange " + iceConnectionState.name());
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);
@@ -353,7 +352,7 @@ public class RTCCall implements DataChannel.Observer {
         });
     }
 
-    public boolean isVideoEnabled(){
+    public boolean isVideoEnabled() {
         return this.videoEnabled;
     }
 
@@ -443,7 +442,7 @@ public class RTCCall implements DataChannel.Observer {
 
     private VideoTrack getVideoTrack() {
         this.capturer = createCapturer();
-        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer));
+        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer.isScreencast()));
     }
 
     private void initRTC(Context c) {
@@ -512,7 +511,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("onIceConnectionChange");
+                    log("accept.onIceConnectionChange " + iceConnectionState.name());
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);

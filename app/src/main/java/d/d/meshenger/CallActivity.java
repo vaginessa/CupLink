@@ -245,6 +245,18 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
         }
     }
 
+    /*
+    private void chooseVoiceMode() {
+        AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        if(mAudioConfiguration.aec) {
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioManager.setSpeakerphoneOn(true);
+        } else {
+            audioManager.setMode(AudioManager.MODE_NORMAL);
+            audioManager.setSpeakerphoneOn(false);
+        }
+    }
+    */
     private void switchVideoEnabled(ImageButton button) {
         if (!Utils.hasCameraPermission(this)) {
             Utils.requestCameraPermission(this, CAMERA_PERMISSION_REQUEST_CODE);
