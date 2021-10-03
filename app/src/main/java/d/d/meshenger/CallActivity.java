@@ -18,8 +18,8 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.support.annotation.NonNull;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
@@ -30,7 +30,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 
 public class CallActivity extends MeshengerActivity implements ServiceConnection, SensorEventListener {
@@ -246,6 +245,18 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
         }
     }
 
+    /*
+    private void chooseVoiceMode() {
+        AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        if(mAudioConfiguration.aec) {
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioManager.setSpeakerphoneOn(true);
+        } else {
+            audioManager.setMode(AudioManager.MODE_NORMAL);
+            audioManager.setSpeakerphoneOn(false);
+        }
+    }
+    */
     private void switchVideoEnabled(ImageButton button) {
         if (!Utils.hasCameraPermission(this)) {
             Utils.requestCameraPermission(this, CAMERA_PERMISSION_REQUEST_CODE);

@@ -3,7 +3,6 @@ package d.d.meshenger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
-import org.libsodium.jni.Sodium;
 
 import java.io.Serializable;
 import java.net.ConnectException;
@@ -12,6 +11,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 
 public class Contact implements Serializable {
@@ -71,12 +71,8 @@ public class Contact implements Serializable {
         List<InetSocketAddress> addrs = new ArrayList<>();
         for (String address : this.addresses) {
             try {
-                if (Utils.isMAC(address)) {
-                    addrs.addAll(Utils.getAddressPermutations(address, MainService.serverPort));
-                } else {
-                    // also resolves domains
-                    addrs.add(Utils.parseInetSocketAddress(address, MainService.serverPort));
-                }
+                // also resolves domains
+                addrs.add(Utils.parseInetSocketAddress(address, MainService.serverPort));
             } catch (Exception e) {
                 log("invalid address: " + address);
                 e.printStackTrace();
@@ -198,13 +194,9 @@ public class Contact implements Serializable {
             throw new JSONException("Invalid Name.");
         }
 
-        if (contact.pubkey == null || contact.pubkey.length != Sodium.crypto_sign_publickeybytes()) {
-            throw new JSONException("Invalid Public Key.");
-        }
-
         JSONArray array = object.getJSONArray("addresses");
         for (int i = 0; i < array.length(); i += 1) {
-            contact.addAddress(array.getString(i).toUpperCase().trim());
+            contact.addAddress(array.getString(i).toLowerCase(Locale.ROOT).trim());
         }
 
         if (all) {

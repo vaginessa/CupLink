@@ -13,9 +13,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.PowerManager;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatDelegate;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatDelegate;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -28,10 +28,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.libsodium.jni.Sodium;
-import org.libsodium.jni.NaCl;
-
-
 /*
  * Show splash screen, name setup dialog, database password dialog and
  * start background service before starting the MainActivity.
@@ -39,17 +35,12 @@ import org.libsodium.jni.NaCl;
 public class StartActivity extends MeshengerActivity implements ServiceConnection {
     private MainService.MainBinder binder;
     private int startState = 0;
-    private static Sodium sodium;
-    private static final int IGNORE_BATTERY_OPTIMIZATION_REQUEST = 5223;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_splash);
-
-        // load libsodium for JNI access
-        this.sodium = NaCl.sodium();
 
         Typeface type = Typeface.createFromAsset(getAssets(), "rounds_black.otf");
         ((TextView) findViewById(R.id.splashText)).setTypeface(type);
@@ -179,10 +170,8 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
 
     private void initKeyPair() {
         // create secret/public key pair
-        final byte[] publicKey = new byte[Sodium.crypto_sign_publickeybytes()];
-        final byte[] secretKey = new byte[Sodium.crypto_sign_secretkeybytes()];
-
-        Sodium.crypto_sign_keypair(publicKey, secretKey);
+        final byte[] publicKey = null;
+        final byte[] secretKey = null;
 
         Settings settings = this.binder.getSettings();
         settings.setPublicKey(publicKey);
@@ -195,47 +184,24 @@ public class StartActivity extends MeshengerActivity implements ServiceConnectio
         }
     }
 
-    private String getMacOfDevice(String device) {
-        for (AddressEntry ae : Utils.collectAddresses()) {
-            // only MAC addresses
-            if (ae.device.equals("wlan0") && Utils.isMAC(ae.address)) {
-                return ae.address;
-            }
-        }
-        return "";
-    }
-
     private void showMissingAddressDialog() {
-        String mac = getMacOfDevice("wlan0");
 
-        if (mac.isEmpty()) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(R.string.setup_address_title);
-            builder.setMessage(R.string.setup_address_message);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Setup");
+        builder.setMessage("There is something to configure. Just tap skip button.");
 
-            builder.setPositiveButton(R.string.ok, (DialogInterface dialog, int id) -> {
-                showMissingAddressDialog();
-                dialog.cancel();
-            });
+        builder.setPositiveButton(R.string.ok, (DialogInterface dialog, int id) -> {
+            showMissingAddressDialog();
+            dialog.cancel();
+        });
 
-            builder.setNegativeButton(R.string.skip, (DialogInterface dialog, int id) -> {
-                dialog.cancel();
-                // continue with out address configuration
-                continueInit();
-            });
-
-            builder.show();
-        } else {
-            this.binder.getSettings().addAddress(mac);
-
-            try {
-                this.binder.saveDatabase();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
+        builder.setNegativeButton(R.string.skip, (DialogInterface dialog, int id) -> {
+            dialog.cancel();
+            // continue with out address configuration
             continueInit();
-        }
+        });
+
+        builder.show();
     }
 
     // initial dialog to set the username
