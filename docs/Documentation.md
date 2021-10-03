@@ -53,6 +53,7 @@ The WebRTC connection itself uses its own crypto scheme.
 ## Development
 
 Meshenger is Free and Open Source Software. Everybody can participate or even fork the software.
+You can enable special development options by tapping the version on the About page a few times.
 
 ### Building From Sources
 
@@ -107,20 +108,15 @@ StartActivity.java (starts first)
 MainActivity.java
  - displays ContactListFragment and EventListFragment
 
-MainService:
- - listen for incoming calles in a thread
+MainService.java:
+ - listen for incoming connections (calls and pings) in a thread
  - ping contacts on request
  - holds database instance
  - provides MainBinder class to access database
 
- MainService:
- - listens for incoming connections (calls and pings) in thread
- - ping contacts on request
- - allows access to the database (settings and contact list) via class MainBinder
-
 Incoming call:
-1. MainService.handleClient() starts CallActivity Intent with Contact object as argument ("ACTION_INCOMING_CALL")
+1. MainService.handleClient() starts CallActivity via an Intent with the Contact object as argument (`ACTION_INCOMING_CALL`)
 
 Outgoing call:
-1. ContactListFragment or EventListFragment starts CallActivity Intent with Contact object as argument ("ACTION_OUTGOING_CALL")
-2. In CallActivity, RTCCall.startCall() is called
+1. ContactListFragment or EventListFragment starts CallActivity Intent with Contact object as argument (`ACTION_OUTGOING_CALL`)
+2. In CallActivity.java, RTCCall.startCall() is called
