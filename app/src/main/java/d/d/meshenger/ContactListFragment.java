@@ -52,11 +52,9 @@ public class ContactListFragment extends Fragment implements AdapterView.OnItemC
         fabGen.setOnClickListener(v -> startActivity(new Intent(this.mainActivity, QRShowActivity.class)));
         fab.setOnClickListener(this::runFabAnimation);
 
-        return view;
-    }
-
-    public void onServiceConnected() {
         refreshContactList();
+
+        return view;
     }
 
     private void runFabAnimation(View fab) {

@@ -190,7 +190,7 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
         }
 
         (findViewById(R.id.videoStreamSwitch)).setOnClickListener((button) -> {
-           switchVideoEnabled((ImageButton)button);
+            switchVideoEnabled((ImageButton) button);
         });
         (findViewById(R.id.frontFacingSwitch)).setOnClickListener((button) -> {
             currentCall.switchFrontFacing();
@@ -207,7 +207,7 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
         }
     };
 
-    private void startRinging(){
+    private void startRinging() {
         log("startRinging");
         int ringerMode = ((AudioManager) getSystemService(AUDIO_SERVICE)).getRingerMode();
 
@@ -245,6 +245,18 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
         }
     }
 
+    /*
+    private void chooseVoiceMode() {
+        AudioManager audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        if(mAudioConfiguration.aec) {
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioManager.setSpeakerphoneOn(true);
+        } else {
+            audioManager.setMode(AudioManager.MODE_NORMAL);
+            audioManager.setSpeakerphoneOn(false);
+        }
+    }
+    */
     private void switchVideoEnabled(ImageButton button) {
         if (!Utils.hasCameraPermission(this)) {
             Utils.requestCameraPermission(this, CAMERA_PERMISSION_REQUEST_CODE);
@@ -274,8 +286,9 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
                 // nothing to do
             }
         });
+
         View frontSwitch = findViewById(R.id.frontFacingSwitch);
-        if (currentCall.isVideoEnabled()){
+        if (currentCall.isVideoEnabled()) {
             frontSwitch.setVisibility(View.VISIBLE);
             Animation scale = new ScaleAnimation(0f, 1f, 0f, 1f, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
             scale.setDuration(buttonAnimationDuration);
@@ -382,7 +395,9 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
             }
             case CONNECTED: {
                 log("activeCallback: CONNECTED");
-                new Handler(getMainLooper()).post( () -> findViewById(R.id.videoStreamSwitchLayout).setVisibility(View.VISIBLE));
+                new Handler(getMainLooper()).post(
+                    () -> findViewById(R.id.videoStreamSwitchLayout).setVisibility(View.VISIBLE)
+                );
                 setStatusText(getString(R.string.call_connected));
                 break;
             }
@@ -415,7 +430,9 @@ public class CallActivity extends MeshengerActivity implements ServiceConnection
                 log("passiveCallback: CONNECTED");
                 setStatusText(getString(R.string.call_connected));
                 runOnUiThread(() -> findViewById(R.id.callAccept).setVisibility(View.GONE));
-                new Handler(getMainLooper()).post(() -> findViewById(R.id.videoStreamSwitchLayout).setVisibility(View.VISIBLE));
+                new Handler(getMainLooper()).post(
+                    () -> findViewById(R.id.videoStreamSwitchLayout).setVisibility(View.VISIBLE)
+                );
                 break;
             }
             case RINGING: {

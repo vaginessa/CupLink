@@ -25,6 +25,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -34,6 +35,9 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
     private ViewPager mViewPager;
     private ContactListFragment contactListFragment;
     private EventListFragment eventListFragment;
+    private SectionsPageAdapter sectionsPageAdapter;
+    private int currentPage = 0;
+    private Date eventListAccessed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,8 +59,12 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 2);
         }
 
+        this.eventListAccessed = new Date();
+
         LocalBroadcastManager.getInstance(this).registerReceiver(refreshEventListReceiver, new IntentFilter("refresh_event_list"));
         LocalBroadcastManager.getInstance(this).registerReceiver(refreshContactListReceiver, new IntentFilter("refresh_contact_list"));
+
+        bindService(new Intent(this, MainService.class), this, Service.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -65,6 +73,7 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
         LocalBroadcastManager.getInstance(this).unregisterReceiver(refreshEventListReceiver);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(refreshContactListReceiver);
 
+        unbindService(this);
         super.onDestroy();
     }
 
@@ -74,15 +83,35 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
         this.binder = (MainService.MainBinder) iBinder;
 
         // in case the language has changed
-        SectionsPageAdapter adapter = new SectionsPageAdapter(getSupportFragmentManager());
-        adapter.addFragment(contactListFragment, this.getResources().getString(R.string.title_contacts));
-        adapter.addFragment(eventListFragment, this.getResources().getString(R.string.title_history));
-        mViewPager.setAdapter(adapter);
+        this.sectionsPageAdapter = new SectionsPageAdapter(getSupportFragmentManager());
+        this.sectionsPageAdapter.addFragment(contactListFragment, this.getResources().getString(R.string.title_contacts));
+        this.sectionsPageAdapter.addFragment(eventListFragment, this.getResources().getString(R.string.title_history));
+        this.mViewPager.setAdapter(this.sectionsPageAdapter);
 
-        contactListFragment.onServiceConnected();
-        eventListFragment.onServiceConnected();
+        mViewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+               // ignore scrolling
+            }
 
-        // call it here because EventListFragment.onResume is triggered twice
+            @Override
+            public void onPageSelected(int position) {
+                log( "onPageSelected, position: " + position);
+                MainActivity.this.currentPage = position;
+                if (position == 1) {
+                    MainActivity.this.eventListAccessed = new Date();
+                }
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+               // ignore scrolling
+            }
+        });
+
+        contactListFragment.refreshContactList();
+        eventListFragment.refreshEventList();
+
         this.binder.pingContacts();
     }
 
@@ -112,14 +141,45 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
                 startActivity(new Intent(this, AboutActivity.class));
                 break;
             }
+            case R.id.action_exit: {
+                MainService.stop(this);
+                if (android.os.Build.VERSION.SDK_INT >= 21) {
+                    finishAndRemoveTask();
+                } else {
+                    finish();
+                }
+                break;
+            }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void updateMissedCallsCounter() {
+        // update missed called notification
+        if (MainActivity.this.binder == null) {
+            return;
+        }
+
+        int missedCalls = 0;
+        Date since = this.eventListAccessed;
+        for (CallEvent event : this.binder.getEventsCopy()) {
+            if (event.date.compareTo(since) >= 0 && event.isMissedCall()) {
+                missedCalls += 1;
+            }
+        }
+
+        this.sectionsPageAdapter.missedCalls = missedCalls;
+        this.mViewPager.setAdapter(this.sectionsPageAdapter);
+        // preserve page selection
+        this.mViewPager.setCurrentItem(this.currentPage);
     }
 
     private BroadcastReceiver refreshEventListReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             eventListFragment.refreshEventList();
+
+            updateMissedCallsCounter();
         }
     };
 
@@ -134,16 +194,12 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
     protected void onResume() {
         log("OnResume");
         super.onResume();
-
-        bindService(new Intent(this, MainService.class), this, Service.BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onPause() {
         log("onPause");
         super.onPause();
-
-        unbindService(this);
     }
 
     @Override
@@ -165,6 +221,7 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
     public static class SectionsPageAdapter extends FragmentPagerAdapter {
         private final List<Fragment> mFragmentList = new ArrayList<>();
         private final List<String> mFragmentTitleList = new ArrayList<>();
+        public int missedCalls = 0;
 
         public void addFragment(Fragment fragment, String title) {
             mFragmentList.add(fragment);
@@ -177,6 +234,14 @@ public class MainActivity extends MeshengerActivity implements ServiceConnection
 
         @Override
         public CharSequence getPageTitle(int position) {
+            Log.d(this, "getPageTitle");
+            if (mFragmentList.get(position) instanceof EventListFragment) {
+                if (this.missedCalls > 0) {
+                    return mFragmentTitleList.get(position) + " (" + missedCalls + ")";
+                } else {
+                    return mFragmentTitleList.get(position);
+                }
+            }
             return mFragmentTitleList.get(position);
         }
 

@@ -9,9 +9,7 @@ class Crypto {
 
     // decrypt database using a password
     public static byte[] decryptDatabase(byte[] encrypted_message, byte[] password) {
-
         return encrypted_message;
-
     }
 
     // encrypt database using a password
@@ -34,5 +32,4 @@ class Crypto {
 
         return new String(message, Charset.forName("UTF-8"));
     }
-
 }

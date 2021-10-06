@@ -89,7 +89,7 @@ public class RTCCall implements DataChannel.Observer {
 
         // usually empty
         this.iceServers = new ArrayList<>();
-        for (String server : binder.getSettings().getIceServers()) {
+        for (String server : this.binder.getSettings().getIceServers()) {
             this.iceServers.add(PeerConnection.IceServer.builder(server).createIceServer());
         }
 
@@ -123,6 +123,7 @@ public class RTCCall implements DataChannel.Observer {
         }
 
         new Thread(() -> {
+            //factory.createPeerConnection(PeerConnection.RTCConfiguration)
             connection = factory.createPeerConnection(Collections.emptyList(), new DefaultObserver() {
                 @Override
                 public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
@@ -170,7 +171,8 @@ public class RTCCall implements DataChannel.Observer {
                             {
                                 byte[] response = pr.readMessage();
                                 String decrypted = Crypto.decryptMessage(response, otherPublicKey, ownPublicKey, ownSecretKey);
-                                if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
+
+                              if (decrypted == null || !Arrays.equals(contact.getPublicKey(), otherPublicKey)) {
                                     log("decrypted var is null or pubkey does not match");
                                     closeCommSocket();
                                     reportStateChange(CallState.ERROR);
@@ -231,7 +233,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("onIceConnectionChange " + iceConnectionState.name());
+                    log("onIceGatheringChange.onIceConnectionChange " + iceConnectionState.name());
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);
@@ -348,7 +350,7 @@ public class RTCCall implements DataChannel.Observer {
         });
     }
 
-    public boolean isVideoEnabled(){
+    public boolean isVideoEnabled() {
         return this.videoEnabled;
     }
 
@@ -505,7 +507,7 @@ public class RTCCall implements DataChannel.Observer {
 
                 @Override
                 public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                    log("onIceConnectionChange");
+                    log("accept.onIceConnectionChange " + iceConnectionState.name());
                     super.onIceConnectionChange(iceConnectionState);
                     if (iceConnectionState == PeerConnection.IceConnectionState.DISCONNECTED) {
                         reportStateChange(CallState.ENDED);
