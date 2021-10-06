@@ -194,6 +194,10 @@ public class Contact implements Serializable {
             throw new JSONException("Invalid Name.");
         }
 
+        if (contact.pubkey == null) {
+            throw new JSONException("Invalid Public Key.");
+        }
+
         JSONArray array = object.getJSONArray("addresses");
         for (int i = 0; i < array.length(); i += 1) {
             contact.addAddress(array.getString(i).toLowerCase(Locale.ROOT).trim());

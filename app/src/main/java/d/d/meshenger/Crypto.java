@@ -1,12 +1,11 @@
 package d.d.meshenger;
 
-
 import java.nio.charset.Charset;
 
 
 class Crypto {
     // for development / testing only
-    public static boolean disable_crypto = true;
+    //public static boolean disable_crypto = true;
 
     // decrypt database using a password
     public static byte[] decryptDatabase(byte[] encrypted_message, byte[] password) {
@@ -27,6 +26,10 @@ class Crypto {
     }
 
     public static String decryptMessage(byte[] message, byte[] otherPublicKeySignOut, byte[] ownPublicKey, byte[] ownSecretKey) {
+        if (otherPublicKeySignOut == null) {
+            return null;
+        }
+
         return new String(message, Charset.forName("UTF-8"));
     }
 }

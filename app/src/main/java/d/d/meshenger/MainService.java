@@ -333,6 +333,10 @@ public class MainService extends Service implements Runnable {
         }
     }
 
+    private void setClientState(Contact contact, Contact.State state) {
+        contact.setState(Contact.State.ONLINE);
+    }
+
     @Override
     public void run() {
         try {
