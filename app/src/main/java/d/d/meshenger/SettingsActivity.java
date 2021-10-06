@@ -3,25 +3,27 @@ package d.d.meshenger;
 import android.app.Dialog;
 import android.app.Service;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.res.Configuration;
+import android.net.Uri;
+import android.os.Build;
 import android.os.IBinder;
+
 import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatDelegate;
+
+import android.os.PowerManager;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
-import java.util.Locale;
 
 
 public class SettingsActivity extends MeshengerActivity implements ServiceConnection {
@@ -61,6 +63,14 @@ public class SettingsActivity extends MeshengerActivity implements ServiceConnec
     @Override
     public void onServiceDisconnected(ComponentName componentName) {
         this.binder = null;
+    }
+
+    private boolean getIgnoreBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager pMgr = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+            return pMgr.isIgnoringBatteryOptimizations(this.getPackageName());
+        }
+        return false;
     }
 
     private void initViews() {
@@ -131,6 +141,18 @@ public class SettingsActivity extends MeshengerActivity implements ServiceConnec
             this.recreate();
         });
 
+        boolean ignoreBatteryOptimizations = getIgnoreBatteryOptimizations();
+        CheckBox ignoreBatteryOptimizationsCB = findViewById(R.id.checkBoxIgnoreBatteryOptimizations);
+        ignoreBatteryOptimizationsCB.setChecked(ignoreBatteryOptimizations);
+        ignoreBatteryOptimizationsCB.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            // Only required for Adroind 6 or later
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + this.getPackageName()));
+                this.startActivity(intent);
+            }
+        });
+
         boolean developmentMode = this.binder.getSettings().getDevelopmentMode();
         CheckBox developmentModeCB = findViewById(R.id.checkBoxDevelopmentMode);
         developmentModeCB.setChecked(developmentMode);
@@ -141,61 +163,14 @@ public class SettingsActivity extends MeshengerActivity implements ServiceConnec
         });
 
         if (developmentMode) {
+            findViewById(R.id.changeIgnoreBatteryOptimizations).setVisibility(View.VISIBLE);
+            findViewById(R.id.changeDevelopmentModeLayout).setVisibility(View.VISIBLE);
             findViewById(R.id.changeIceServersLayout).setVisibility(View.VISIBLE);
         } else {
+            findViewById(R.id.changeIgnoreBatteryOptimizations).setVisibility(View.GONE);
+            findViewById(R.id.changeDevelopmentModeLayout).setVisibility(View.GONE);
             findViewById(R.id.changeIceServersLayout).setVisibility(View.GONE);
         }
-
-        getLocale();
-    }
-
-    private void getLocale() {
-        Configuration config = getResources().getConfiguration();
-        Locale locale = config.locale;
-        String language = locale.getDisplayLanguage();
-
-        if (!this.binder.getSettings().getLanguage().equals(language)) {
-            this.binder.getSettings().setLanguage(language);
-            this.binder.saveDatabase();
-        }
-
-        ((TextView) findViewById(R.id.localeTv)).setText(language);
-
-        Locale[] locales = new Locale[]{Locale.ENGLISH, Locale.FRENCH, Locale.GERMAN};
-        findViewById(R.id.changeLocaleLayout).setOnClickListener((v) -> {
-            RadioGroup group = new RadioGroup(this);
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-            for (int i = 0; i < locales.length; i += 1) {
-                Locale l = locales[i];
-                RadioButton button = new RadioButton(this);
-                button.setId(i);
-                button.setText(l.getDisplayLanguage());
-                if (l.getISO3Language().equals(locale.getISO3Language())) {
-                    button.setChecked(true);
-                }
-                group.addView(button);
-            }
-
-            builder.setView(group);
-            AlertDialog dialog = builder.show();
-            group.setOnCheckedChangeListener((a, position) -> {
-                log("changed locale to " + locales[position].getLanguage());
-
-                Configuration config1 = new Configuration();
-                config1.locale = locales[position];
-
-                getResources().updateConfiguration(config1, getResources().getDisplayMetrics());
-
-                this.binder.getSettings().setLanguage(locale.getDisplayLanguage());
-                this.binder.saveDatabase();
-
-                finish();
-                startActivity(new Intent(getApplicationContext(), this.getClass()));
-
-                dialog.dismiss();
-            });
-        });
     }
 
     private void showChangeNameDialog() {
