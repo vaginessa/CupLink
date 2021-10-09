@@ -22,8 +22,10 @@ import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
+import org.webrtc.SurfaceTextureHelper;
 import org.webrtc.SurfaceViewRenderer;
 //import org.webrtc.VideoCapturer;
+import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 import java.io.IOException;
@@ -251,7 +253,7 @@ public class RTCCall implements DataChannel.Observer {
                     dataChannel.registerObserver(RTCCall.this);
                 }
             });
-            PeerConnection.RTCConfiguration config = new PeerConnection.RTCConfiguration(new ArrayList());
+            PeerConnection.RTCConfiguration config = new PeerConnection.RTCConfiguration(this.iceServers);
             config.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_ONCE;
 
             connection.setConfiguration(config);
@@ -432,14 +434,17 @@ public class RTCCall implements DataChannel.Observer {
         upStream = factory.createLocalMediaStream("stream1");
         AudioTrack audio = factory.createAudioTrack("audio1", factory.createAudioSource(new MediaConstraints()));
         upStream.addTrack(audio);
-        upStream.addTrack(getVideoTrack());
-        //this.capturer.startCapture(500, 500, 30);
+        this.capturer = createCapturer();
+        VideoSource videoSource = factory.createVideoSource(this.capturer.isScreencast());
+        upStream.addTrack(getVideoTrack(videoSource));
+        EglBase.Context eglBaseContext = EglBase.create().getEglBaseContext();
+        SurfaceTextureHelper surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext);
+        this.capturer.initialize(surfaceTextureHelper, this.context, videoSource.getCapturerObserver());
         return upStream;
     }
 
-    private VideoTrack getVideoTrack() {
-        this.capturer = createCapturer();
-        return factory.createVideoTrack("video1", factory.createVideoSource(this.capturer));
+    private VideoTrack getVideoTrack(VideoSource videoSource) {
+        return factory.createVideoTrack("video1", videoSource);
     }
 
     private void initRTC(Context c) {

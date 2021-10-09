@@ -8,8 +8,8 @@ android {
         applicationId "d.d.meshenger"
         minSdkVersion 21
         targetSdkVersion 29
-        versionCode 311
-        versionName "0.3.1.1"
+        versionCode 312
+        versionName "0.3.1.2"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         vectorDrawables.useSupportLibrary = true
         setProperty("archivesBaseName", project.getParent().name+"-"+versionName)
@@ -36,5 +36,6 @@ dependencies {
     implementation('com.journeyapps:zxing-android-embedded:3.6.0') { transitive = false }
     //back to 3.3.0 instead of 3.4.0 sue to https://github.com/zxing/zxing/issues/1170
     implementation 'com.google.zxing:core:3.3.0'
-    implementation 'org.webrtc:google-webrtc:1.0.22672'
+    implementation 'org.webrtc:google-webrtc:1.0.32006'
+
 }
